@@ -1,5 +1,7 @@
 # study-modern-js-deepdive
-모던 자바스크립트 딥다이브를 함께 읽으며 성장하기 위한 기술 스터디 리포지토리입니다.
+[모던 자바스크립트 딥다이브](https://www.aladin.co.kr/shop/wproduct.aspx?ItemId=251552545&start=slayer)를 함께 읽으며 성장하기 위한 기술 스터디 리포지토리입니다.
+
+<br>
 
 ## 기간
 4주: 7월 30일 ~ 8월 20일
