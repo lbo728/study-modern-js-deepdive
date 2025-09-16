@@ -193,10 +193,173 @@ console.log(generator.next()); // {value: undefined, done:true}
       즉 제너레이터 함수 fetchTodo의 반환값인 undefined를 그대로 반환(9)하고 처리를 종료한다.
   
 ## 46.6 async/await
+- async/await를 사용하면 프로미스의 후속 처리 메서드를 사용하지 않고 동기 처럼 프로미스를 사용할 수 있음.
 
+```js
+const fetch = require('node-fetch');
+
+async function fetchTodo() {
+  const url = 'https://jsonplaceholder.typicode.com/todos/1';
+  
+  const response = await fetch(url);
+  const todo = await response.json();
+  console.log(todo); // {userId: 1, id: 1, title: 'delectus aut autem', completed: false}
+}
+
+fetchTodo();
+```
 
   ### 46.6.1 async 함수
+  - await 키워드는 반드시 async 함수 내부에서 사용해야 함.
+  - async 함수는 async 키워드를 사용해 정의할 수 있으며 언제나 프로미스를 반환.
+  - async 함수가 명시적으로 프로미스를 반환하지 않더라도 async 함수는 암묵적으로 반환값을 resolve하는 프로미스를 반환.
+
+  ```js
+  // async 함수 선언문
+  async function foo(n) { return n }
+  foo(1).then(v => console.log(v)); // 1
+
+  // async 함수 표현식
+  const bar = async function(n) { return n };
+  bar(2).then(v => console.log(v)); // 2
+
+  // async 화살표 함수
+  const baz = async n => n;
+  baz(n).then(v => console.log(v)); // 3
+
+  // async 메서드
+  const obj = {
+    async foo(n) { return n; }
+  };
+  obj.foo(4).then(v => console.log(v)); // 4
+
+  // async 클래스 메서드
+  class MyClass {
+    async bar(n) { return n; }
+  }
+  const myClass = new MyClass();
+  myClass.bar(5).then(v => console.log(v)); // 5
+  ```
+
+  - 클래스의 constructor 메서드는 async 메서드가 될 수 없음.
+  - 클래스의 constructor 메서드는 인스턴스를 반환해야 하지만 async 함수는 언제나 프로미스를 반환해야 함.
+
+  ```js
+  class MyClass {
+    async constructor() { }
+    // SyntaxError: class constructor may not be an async method
+  }
+  const myClass = new MyClass();
+  ```
 
   ### 46.6.2 await 키워드
+  - await 키워드는 프로미스가 settled 상태(비동기 처리가 수행된 상태)가 될 때까지 대기하다가 settled 상태가 되면 프로미스가 resolve한 처리 결과를 반환.
+  - awiat 키워드는 반드시 프로미스 앞에서 사용.
+
+  ```js
+  const fetch = require('node-fetch');
+
+  const getGithubUserName = async id => {
+    const res = await fetch(`https://api.github.com/users/${id}`); // ①
+    const { name } = await res.json(); // ②
+    console.log(name); // daeun Lee
+  };
+
+  getGithubUserName('daeun Lee')  
+  ```
+
+  - await 키워드는 프로미스가 settled 상태가 될 때까지 대기하다 프로미스가 settled 상태가 되면 프로미스가 resolve한 결과를 res 변수에 할당.
+  - 이처럼 await 키워드는 다음 실행을 일시 중지시켰다가 프로미스가 settled 상태가 되면 다시 재개.
+
+  ```js
+  async function foo() {
+    const a = await new Promise(resolve => setTimeout(() => resolve(1), 3000));
+    const b = await new Promise(resolve => setTimeout(() => resolve(2), 2000));
+    const c = await new Promise(resolve => setTimeout(() => resolve(3), 1000));
+
+    console.log([a, b, c]); // [1, 2, 3]
+  }
+
+  foo(); // 약 6초 소요.
+  ```
+
+  - 위 예제의 foo 함수는 종료될 때까지 6초가 소요됩니다. 그 이유는 await 키워드는 프로미스가 settled 상태가 될 때까지 대기하기 때문.
+  - setTimeout 함수가 종료되면 그때 프로미스는 settled 상태가 되어 다음 코드가 실행.
+  - 이렇게 서로 연관이 없는 비동기 처리는 개별적으로 수행되는 비동기 이므로 처리가 완료될 때까지 대기하여 순차적으로 처리할 필요 없음.
+  - 이때 Promise.all()을 활용할 수 있습니다.
+
+  ```js
+  async function foo() {
+    const res = Promise.all([
+      new Promise(resolve => setTimeout(() => resolve(1), 3000));
+      new Promise(resolve => setTimeout(() => resolve(2), 2000));
+      new Promise(resolve => setTimeout(() => resolve(3), 1000));
+    ])
+
+    console.log(res); // [1, 2, 3]
+  }
+
+  foo(); // 약 3초 소요.
+  ```
+
+  - Promise.all()을 활용하면 프로미스가 병럴 처리됨.
+  - 다음 예제의 경우,
+      첫 번째 프로미스는 3초 후에 1을 resolve 함.
+      두 번째 프로미스는 2초 후에 2을 resolve 함.
+      세 번째 프로미스는 1초 후에 3을 resolve 함.
+    그렇게 약 3초 후에 모든 프로미스가 fullfilled 상태가 되면 모든 프로미스를 배열에 저장하고 새로운 프로미스를 반환.
 
   ### 46.6.3 에러 처리
+  - 비동기 처리를 위한 콜백 패턴의 단점 중 가장 심각한 것은 에러 처리가 곤란하다는 것.
+  - 에러는 호출자 방향으로 전파. 즉, 콜 스택의 아래 방향(실행중인 실행 컨텍스트가 푸시되기 직전에 푸시된 실행 컨텍스트 방향)으로 전파.
+  - 하지만 콜백 함수를 호출한 것은 비동기 함수가 아니기 때문에 try...catch 문을 사용해 에러를 캐치할 수 없음.
+
+  ```js
+  try {
+    setTimeout(() => {
+      throw new Error('Error!');
+    }, 1000);
+  } catch (error) {
+      // 에러를 캐치하지 못한다.
+      console.error('캐치한 에러 : ', error);
+  }
+  ```
+
+  - async/await에서 에러 처리는 try...catch문을 사용할 수 있음.
+  - 콜백 함수를 인수로 전달받는 비동기 함수와는 달리 프로미스를 반환하는 비동기 함수는 명시적으로 호출할 수 있기 때문에 호출자가 명확함.
+
+  ```js
+  const fetch = require('node-fetch');
+
+  const foo = async () => {
+    try {
+      const wrongUrl = 'https://wrong.url';
+
+      const response = await fetch(wrongUrl);
+      const data = await response.json();
+      console.log(data);
+    } catch (error) {
+      console.error(error); // TypeError : Failed to fetch
+    }
+  }
+
+  foo();
+  ```
+
+  - 위 예제의 foo 함수의 catch 문은 HTTP 통신에서 발생한 네트워크 에러뿐 아니라 try 코드 블록 내의 모든문에서 발생한 일반적인 에러까지 모두 캐치가 가능.
+  - async 함수 내에서 catch 문을 사용해서 에러 처리를 하지 않으면 async 함수는 발생한 에러를 reject하는 프로미스를 반환.
+  - Promise.prototype.catch 후속 처리 메서드를 사용해 에러를 캐치할 수도 있음.
+
+  ```js
+  const fetch = require('node-fetch');
+
+  const foo = async () => {
+    const wrongUrl = 'https://wrong.url';
+
+    const response = await fetch(wrongUrl);
+    const data = await response.json();
+    return data;
+  }
+
+  foo().then(console.log).catch(console.error); // TypeError : Failed to fetch
+  ```
